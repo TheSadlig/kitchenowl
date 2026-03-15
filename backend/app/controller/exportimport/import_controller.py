@@ -6,9 +6,10 @@ from app.service.importServices import (
     importRecipe,
     importExpense,
     importShoppinglist,
+    importKoalaProRecipes,
 )
 from app.service.recalculate_balances import recalculateBalances
-from .schemas import ImportSchema
+from .schemas import ImportSchema, KoalaProImportSchema
 from app.helpers import validate_args, authorize_household
 from flask import jsonify, Blueprint
 from flask_jwt_extended import jwt_required
@@ -51,3 +52,22 @@ def importData(args, household_id):
 
     app.logger.info(f"Import took: {(time.time() - t0):.3f}s")
     return jsonify({"msg": "DONE"})
+
+
+@importBP.route("/koala-pro", methods=["POST"])
+@jwt_required()
+@authorize_household()
+@validate_args(KoalaProImportSchema)
+def importKoalaPro(args, household_id):
+    household = Household.find_by_id(household_id)
+    if not household:
+        return
+
+    payload = args.get("koala_json") or args.get("recipes") or []
+    imported = importKoalaProRecipes(
+        household,
+        payload,
+        args["recipe_overwrite"] if "recipe_overwrite" in args else False,
+    )
+
+    return jsonify({"msg": "DONE", "imported_recipes": imported})

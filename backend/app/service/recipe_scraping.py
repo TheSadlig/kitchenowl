@@ -1,5 +1,6 @@
 import re
 from typing import Any
+from urllib.parse import urlparse
 from recipe_scrapers import scrape_html
 from recipe_scrapers._exceptions import SchemaOrgException
 import recipe_scrapers.__version__
@@ -15,6 +16,23 @@ from app.models import Recipe, Item, Household
 HEADERS = {
     "User-Agent": f"Mozilla/5.0 (compatible; Windows NT 10.0; Win64; x64; rv:{recipe_scrapers.__version__}) recipe-scrapers/{recipe_scrapers.__version__}",
 }
+
+KNOWN_CONNECTORS: list[tuple[str, str]] = [
+    ("ricardocuisine.com", "ricardo"),
+    ("marmiton.org", "marmiton"),
+    ("app.kitchenowl.org", "kitchenowl"),
+]
+
+
+def detectConnector(url: str) -> str:
+    parsed = urlparse(url if url.startswith("http") else f"https://{url}")
+    host = (parsed.netloc or "").lower()
+    for domain, connector_name in KNOWN_CONNECTORS:
+        if host == domain or host.endswith("." + domain):
+            return connector_name
+    if url.startswith("kitchenowl://"):
+        return "kitchenowl"
+    return "generic"
 
 
 def scrapePublic(url: str, html: str, household: Household) -> dict[str, Any] | None:
@@ -113,6 +131,7 @@ def scrapePublic(url: str, html: str, household: Household) -> dict[str, Any] | 
     return {
         "recipe": recipe.obj_to_dict(),
         "items": items,
+        "connector": detectConnector(url),
     }
 
 
@@ -139,6 +158,7 @@ def scrapeLocal(recipe_id: int, household: Household):
             "source": "kitchenowl:///recipe/" + str(recipe.id),
         },
         "items": items,
+        "connector": "kitchenowl",
     }
 
 
@@ -163,7 +183,7 @@ def scrapeKitchenOwl(
     for ingredient in recipe["items"]:
         items[ingredient["name"] + " " + ingredient["description"]] = ingredient
 
-    return {"recipe": recipe, "items": items}
+    return {"recipe": recipe, "items": items, "connector": "kitchenowl"}
 
 
 def scrape(url: str, household: Household) -> dict[str, Any] | None:

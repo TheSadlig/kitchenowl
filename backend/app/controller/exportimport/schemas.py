@@ -1,4 +1,4 @@
-from marshmallow import EXCLUDE, fields, Schema
+from marshmallow import EXCLUDE, ValidationError, fields, validates_schema, Schema
 
 
 class ImportSchema(Schema):
@@ -62,3 +62,19 @@ class ImportSchema(Schema):
     expenses = fields.List(fields.Nested(Expense))
     member = fields.List(fields.String())
     shoppinglists = fields.List(fields.String())
+
+
+class KoalaProImportSchema(Schema):
+    class Meta:
+        unknown = EXCLUDE
+
+    koala_json = fields.List(fields.Dict())
+    recipes = fields.List(fields.Dict())
+    recipe_overwrite = fields.Boolean(load_default=False)
+
+    @validates_schema
+    def validate_payload(self, data, **kwargs):
+        if not data.get("koala_json") and not data.get("recipes"):
+            raise ValidationError(
+                "Provide 'koala_json' or 'recipes' with Koala Pro entries"
+            )
