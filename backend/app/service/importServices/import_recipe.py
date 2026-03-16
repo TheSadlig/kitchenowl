@@ -41,18 +41,26 @@ def importRecipe(household_id: int, args: dict, overwrite: bool = False):
             item = Item.find_by_name(household_id, recipeItem["name"])
             if not item:
                 item = Item.create_by_name(household_id, recipeItem["name"])
-            con = RecipeItems(
-                description=recipeItem["description"], optional=recipeItem["optional"]
-            )
-            con.item = item
-            con.recipe = recipe
+            con = RecipeItems.find_by_ids(recipe.id, item.id)
+            if con:
+                if recipeItem["description"] and not con.description:
+                    con.description = recipeItem["description"]
+                con.optional = con.optional and recipeItem["optional"]
+            else:
+                con = RecipeItems(
+                    description=recipeItem["description"], optional=recipeItem["optional"]
+                )
+                con.item = item
+                con.recipe = recipe
             con.save()
     if "tags" in args:
         for tagName in args["tags"]:
             tag = Tag.find_by_name(household_id, tagName)
             if not tag:
                 tag = Tag.create_by_name(household_id, tagName)
-            con = RecipeTags()
-            con.tag = tag
-            con.recipe = recipe
-            con.save()
+            con = RecipeTags.find_by_ids(recipe.id, tag.id)
+            if not con:
+                con = RecipeTags()
+                con.tag = tag
+                con.recipe = recipe
+                con.save()
