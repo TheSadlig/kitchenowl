@@ -43,6 +43,51 @@ def _split_ingredient_lines(text: str) -> list[str]:
     return out
 
 
+def _parse_ingredient_items(
+    ingredient_lines: list[str], language: str | None
+) -> list[dict[str, Any]]:
+    items: list[dict[str, Any]] = []
+
+    def append_item(name: str, description: str = ""):
+        clean_name = name.strip()
+        if not clean_name:
+            return
+        items.append(
+            {
+                "name": clean_name,
+                "description": description.strip(),
+                "optional": False,
+            }
+        )
+
+    try:
+        parsed_items = parseIngredients(ingredient_lines, language)
+    except Exception:
+        parsed_items = []
+
+    if parsed_items:
+        for parsed in parsed_items:
+            append_item(parsed.name or parsed.originalText or "", parsed.description or "")
+        return items
+
+    for ingredient_line in ingredient_lines:
+        try:
+            parsed = parseIngredients([ingredient_line], language)
+        except Exception:
+            parsed = []
+
+        if parsed:
+            append_item(
+                parsed[0].name or parsed[0].originalText or "",
+                parsed[0].description or "",
+            )
+            continue
+
+        append_item(ingredient_line)
+
+    return items
+
+
 def importKoalaProRecipes(
     household: Household,
     koala_payload: list[dict[str, Any]],
@@ -73,19 +118,7 @@ def importKoalaProRecipes(
             if ingredient_name.lower() not in [e.lower() for e in ingredient_lines]:
                 ingredient_lines.append(ingredient_name)
 
-        parsed_items = parseIngredients(ingredient_lines, household.language)
-        items: list[dict[str, Any]] = []
-        for parsed in parsed_items:
-            name = (parsed.name or parsed.originalText or "").strip()
-            if not name:
-                continue
-            items.append(
-                {
-                    "name": name,
-                    "description": (parsed.description or "").strip(),
-                    "optional": False,
-                }
-            )
+        items = _parse_ingredient_items(ingredient_lines, household.language)
 
         tags: list[str] = []
         tags.extend(_element_names(raw.get("field_recipe_particularites")))
