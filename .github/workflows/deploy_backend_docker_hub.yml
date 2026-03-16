@@ -38,6 +38,9 @@ jobs:
           elif [[ $REF == "refs/tags/beta-v"* ]]
           then
             echo "tags=$BASE_TAG:beta, $BASE_TAG:${REF#refs/tags/}" >> $GITHUB_ENV
+          elif [[ $REF == "refs/heads/main" ]]
+          then
+            echo "tags=$BASE_TAG:latest, $BASE_TAG:dev" >> $GITHUB_ENV
           else
             echo "tags=$BASE_TAG:dev" >> $GITHUB_ENV
           fi
